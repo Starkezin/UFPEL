@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rei-Julian</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #edf1f5;
+        color: #182230;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      main {
+        display: grid;
+        grid-template-columns: 360px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+      aside {
+        background: #ffffff;
+        border-right: 1px solid #d4dce8;
+        padding: 18px;
+        overflow-y: auto;
+        max-height: 100vh;
+      }
+      h1 { font-size: 24px; margin: 0; letter-spacing: 0; }
+      .subtitle { margin: 4px 0 18px; color: #526173; font-size: 13px; }
+      label { display: block; font-size: 12px; font-weight: 700; margin: 14px 0 6px; color: #344256; }
+      select, button {
+        width: 100%; min-height: 40px; border-radius: 6px; border: 1px solid #b9c4d2;
+        background: #fff; color: #182230; font: inherit;
+      }
+      select, input { padding: 0 8px; }
+      input { width: 100%; min-height: 40px; border-radius: 6px; border: 1px solid #b9c4d2; background: #fff; color: #182230; font: inherit; }
+      button { cursor: pointer; font-weight: 700; }
+      .primary { margin-top: 16px; border-color: #176b87; background: #176b87; color: #fff; }
+      .secondary { margin-top: 8px; border-color: #b9c4d2; background: #f7f9fb; color: #223044; }
+      .row-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+      .segmented { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+      .segmented button[aria-pressed="true"] { border-color: #176b87; background: #dff2f6; color: #0f5268; }
+      .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0; }
+      .metric { border: 1px solid #d4dce8; border-radius: 6px; padding: 10px; background: #fafbfc; }
+      .metric strong { display: block; font-size: 19px; }
+      .metric span { color: #526173; font-size: 12px; }
+      .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; font-size: 12px; }
+      .legend span { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+      .swatch { width: 22px; height: 5px; border-radius: 999px; background: var(--color); flex: 0 0 auto; }
+      #summary, #directions, #comparison, #tracking { margin-top: 16px; padding-top: 14px; border-top: 1px solid #d4dce8; font-size: 13px; line-height: 1.45; }
+      #directions ol { padding-left: 20px; margin: 8px 0 0; }
+      #directions li { margin: 0 0 7px; }
+      .map-wrap { padding: 16px; min-width: 0; display: grid; grid-template-rows: auto 1fr; gap: 10px; }
+      .map-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #526173; font-size: 13px; }
+      .map-toolbar strong { color: #182230; }
+      .map-actions { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+      .map-actions button { width: 34px; min-height: 32px; padding: 0; border-radius: 6px; background: #fff; color: #223044; }
+      .map-actions .reset-view { width: auto; padding: 0 10px; font-size: 12px; }
+      #zoom-label { min-width: 48px; text-align: center; color: #344256; }
+      canvas { width: 100%; height: calc(100vh - 76px); display: block; background: #f8fafc; border: 1px solid #d4dce8; border-radius: 8px; touch-action: none; }
+      @media (max-width: 860px) {
+        main { grid-template-columns: 1fr; }
+        aside { max-height: none; border-right: 0; border-bottom: 1px solid #d4dce8; }
+        canvas { height: 64vh; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <aside>
+        <h1>Rei-Julian</h1>
+        <p class="subtitle">Rotas de bicicleta em Pelotas/RS</p>
+        <div class="stats" id="stats"></div>
+
+        <label for="origin-search">Buscar origem</label>
+        <input id="origin-search" list="origin-results" placeholder="Rua, avenida ou ponto" />
+        <datalist id="origin-results"></datalist>
+        <label for="origin">Origem</label>
+        <select id="origin"></select>
+        <label for="destination-search">Buscar destino</label>
+        <input id="destination-search" list="destination-results" placeholder="Rua, avenida ou ponto" />
+        <datalist id="destination-results"></datalist>
+        <label for="destination">Destino</label>
+        <select id="destination"></select>
+        <label for="profile">Perfil</label>
+        <select id="profile">
+          <option value="balanced">Equilibrado</option>
+          <option value="safest">Mais seguro</option>
+          <option value="fastest">Mais rapido</option>
+        </select>
+        <button class="primary" id="route">Calcular rota</button>
+        <div class="row-actions">
+          <button class="secondary" id="compare" type="button">Comparar perfis</button>
+          <button class="secondary" id="gps" type="button">Usar GPS</button>
+        </div>
+        <div class="segmented" aria-label="Selecionar ponto pelo mapa">
+          <button id="pick-origin" aria-pressed="true">Origem no mapa</button>
+          <button id="pick-destination" aria-pressed="false">Destino no mapa</button>
+        </div>
+        <div class="row-actions">
+          <button class="secondary" id="simulate">Simular movimento</button>
+          <button class="secondary" id="stop-simulation" type="button">Parar</button>
+        </div>
+
+        <div class="legend">
+          <span><i class="swatch" style="--color:#16824b"></i>Ciclovia</span>
+          <span><i class="swatch" style="--color:#1f6f8b"></i>Ciclofaixa</span>
+          <span><i class="swatch" style="--color:#8794a6"></i>Residencial</span>
+          <span><i class="swatch" style="--color:#5f6b7a"></i>Rua comum</span>
+          <span><i class="swatch" style="--color:#c96f1f"></i>Avenida</span>
+          <span><i class="swatch" style="--color:#161f2e"></i>Rodovia</span>
+          <span><i class="swatch" style="--color:#b42318"></i>Insegura</span>
+          <span><i class="swatch" style="--color:#6f42c1"></i>Rota</span>
+        </div>
+        <div id="summary">Selecione origem e destino.</div>
+        <div id="directions"></div>
+        <div id="comparison"></div>
+        <div id="tracking">Tracking aguardando rota calculada.</div>
+      </aside>
+      <section class="map-wrap">
+        <div class="map-toolbar">
+          <strong id="map-name">Mapa</strong>
+          <span id="hint">Clique em um ponto para alterar a origem.</span>
+          <div class="map-actions" aria-label="Controles do mapa">
+            <button id="zoom-out" type="button" title="Diminuir zoom">−</button>
+            <span id="zoom-label">100%</span>
+            <button id="zoom-in" type="button" title="Aumentar zoom">+</button>
+            <button class="reset-view" id="reset-view" type="button">Reset</button>
+          </div>
+        </div>
+        <canvas id="map" width="1200" height="820"></canvas>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

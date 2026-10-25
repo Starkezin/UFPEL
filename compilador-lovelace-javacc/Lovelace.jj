@@ -1,0 +1,122 @@
+PARSER_BEGIN(Lovelace)
+import java.io.*;
+public class Lovelace {
+
+  public static void main(String args[]) throws ParseException,IOException {
+    
+ 	Lovelace analisador = new Lovelace(new FileInputStream(args[0]));
+ 	analisador.Lovelace();
+  }
+
+}
+
+PARSER_END(Lovelace)
+
+SKIP :
+{
+  " "
+| "\t"
+| "\n"
+| "\r"
+
+}
+
+TOKEN :
+{
+  <MAIN: "main">
+| <LET: "let">
+|<APAR: "(">
+|<FPAR: ")">  
+| <BEGIN: "begin">
+| <END: "end">
+| <FLINE: ";">
+| <ATRB: ":=">
+| <FLOAT: "Float">
+| <BOOL: "Bool">
+| <VOID: "Void">
+| <PRINT: "print">
+| <READ: "read">
+
+| <SUM: "+">
+| <SUB: "-">
+| <MUL: "*">
+| <DIV: "/">
+| <AND: "&&">
+| <OR: "||">
+| <LESS: "<">
+| <GREATHER: ">">
+| <EQUAL: "==">
+
+| <IF: "if">
+| <WHILE: "while">
+
+| <RETURN: "return">
+| <TRUE: "true">
+| <FALSE: "false">
+| <VIRG: ",">
+| <DEF: "def">
+
+
+}
+
+TOKEN :
+{
+  <NUM : (["0"-"9", "."])+>
+ |< ID: ["a"-"z","A"-"Z"] ( ["a"-"z","A"-"Z","0"-"9"])*>
+
+}
+
+
+
+void Lovelace () :
+{Token t;}
+{
+
+(
+  <MAIN> { System.out.println("Palavra reservada: main");}
+| <LET> { System.out.println("Palavra reservada: let");}
+| <BEGIN> { System.out.println("Palavra reservada: begin");}
+| <END>  { System.out.println("Palavra reservada: end");}  
+| <FLOAT> { System.out.println("Palavra reservada: Float");}
+| <BOOL> { System.out.println("Palavra reservada: Bool");}
+| <VOID> { System.out.println("Palavra reservada: Void");}
+| <PRINT> { System.out.println("Palavra reservada: print");}
+
+| <SUM> { System.out.println("Operador: +");}
+| <SUB> { System.out.println("Operador: -");}
+| <MUL> { System.out.println("Operador: *");}
+| <DIV> { System.out.println("Operador: /");}
+| <AND> { System.out.println("Operador: &&");}
+| <OR> { System.out.println("Operador: ||");}
+| <LESS> { System.out.println("Operador: <");}
+| <GREATHER> { System.out.println("Operador: >");}
+| <EQUAL> { System.out.println("Operador: ==");}
+
+| <IF> { System.out.println("Condicional: if");}
+| <WHILE> { System.out.println("Condicional: while");}
+
+
+| <FPAR> { System.out.println("Fecha parênteses: )");}
+| <APAR> { System.out.println("Abre parênteses: (");}
+
+| t=<NUM> { System.out.println("Número: "+ t.image);}
+| t=<ID> { System.out.println("Identificador: "+ t.image);}
+| <FLINE> {System.out.println("Ponto e vírgula: ;");}
+| <VIRG> { System.out.println("Vírgula: ,");}
+| <ATRB> {System.out.println("Atribuição: :=");}
+
+| <RETURN> { System.out.println("Retorno de função: return");}
+| <DEF> {System.out.println("Definição de função: def");}
+| <TRUE> { System.out.println("Operador booleano: true");}
+| <FALSE> { System.out.println("Operador booleano: false");}
+
+)*
+<EOF> 
+
+
+}
+
+
+
+
+

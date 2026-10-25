@@ -1,0 +1,210 @@
+options {
+    OUTPUT_DIRECTORY = "javaFiles";
+}
+
+PARSER_BEGIN(Parser)
+import java.io.*;
+public class Parser {
+
+  public static void main(String args[]) throws ParseException,IOException {
+    
+ Parser parser = new Parser(new FileInputStream(args[0]));
+ parser.Parser();
+  }
+
+}
+
+
+PARSER_END(Parser)
+
+
+
+
+SKIP :
+{
+  " "
+| "\t"
+| "\n"
+| "\r"
+}
+
+TOKEN :
+{
+  <MAIN: "main">
+| <LET: "let">
+| <APAR:"(">
+| <FPAR:")">
+| <PRINT: "print">
+| <ATRIB: ":=">
+| <PV: ";">
+| <BEGIN: "begin">
+| <END: "end">
+| <FLOAT: "Float">
+| <BOOL: "Bool">
+| <VOID: "Void">
+| <READ: "read">
+
+| <SUM: "+">
+| <SUB: "-">
+| <MUL: "*">
+| <DIV: "/">
+| <AND: "&&">
+| <OR: "||">
+| <LESS: "<">
+| <GREATHER: ">">
+| <EQUAL: "==">
+
+| <IF: "if">
+| <WHILE: "while">
+
+| <RETURN: "return">
+| <TRUE: "true">
+| <FALSE: "false">
+| <VIRG: ",">
+| <DEF: "def">
+
+
+}
+
+TOKEN :
+{
+  <NUM : (["0"-"9", "."])+>
+ |< ID: ["a"-"z","A"-"Z"] ( ["a"-"z","A"-"Z","0"-"9"])*>
+
+}
+
+
+// Parser -> "main" "{" COMANDOS  "}"
+
+void Parser():
+{}
+{
+   Main() (Func())?
+}
+
+void Main():
+{}
+{
+   <MAIN> <APAR> <FPAR> <BEGIN> VarDecl() Comandos() <END>
+}
+
+void VarDecl() :
+{}
+{
+   ( <LET> Tipo() <ID> <PV> )*
+}
+
+
+void Tipo () :
+{}
+{
+
+  <FLOAT> | <BOOL> | <VOID>
+
+}
+
+
+// COMANDOS -> COM ";"  COMANDOS'
+void Comandos () :
+{}
+{
+
+ ( Com() )*
+
+}
+
+// COMANDOS'->   COM ";" COMANDOS' | epsilon
+
+void ComandosL () :
+{}
+{
+
+ ( Com()  <PV>  ComandosL())?
+
+}
+
+// COM -> id ":=" EXP | "print" "(" EXP ")"
+
+void Com() :
+{}
+{
+    <ID> ComID() 
+  | <IF> Exp() <BEGIN> Comandos() <END>
+  | <WHILE> Exp() <BEGIN> Comandos() <END>
+  | <RETURN> Exp() <PV>
+  | <PRINT> Exp() <PV> 
+}
+
+void ComID() :
+{}
+{
+    <ATRIB> ComAtrib()
+  | <APAR> listaExp() <FPAR> <PV>
+}
+
+void ComAtrib() :
+{}
+{
+    <READ> <APAR> <FPAR> <PV>
+  | Exp() <PV>
+}
+
+// EXP -> num | id
+void Exp() :
+{}
+{
+    Fator() (Op() Fator())*
+}
+void Fator() :
+{}
+{
+    <NUM>
+  | <TRUE>
+  | <FALSE>
+  | <ID> FatorID()
+  | <APAR> Exp() <FPAR>
+}
+
+void FatorID() :
+{}
+{
+    (<APAR> listaExp() <FPAR>)?
+}
+
+void Op() :
+{}
+{
+
+<SUM> | <SUB> | <MUL> | <DIV> | <AND> | <OR> | <GREATHER> | <LESS> | <EQUAL>
+
+}
+
+void listaExp():
+{}
+{
+    Exp() ( <VIRG> Exp() )*
+}
+
+void Func() :
+{}
+{
+  <DEF> Tipo() <ID> <APAR> (ListaArg())? <FPAR> <BEGIN> VarDecl() Comandos() <END> FuncL()
+}
+
+void FuncL() :
+{}
+{
+  (<DEF> Tipo() <ID> <APAR> (ListaArg())? <FPAR> <BEGIN> VarDecl() Comandos() <END> FuncL())?
+}
+
+void ListaArg() :
+{}
+{
+  Tipo() <ID> ListaArgL()
+}
+
+void ListaArgL() :
+{}
+{
+  (<VIRG> Tipo() <ID> ListaArgL())?
+}

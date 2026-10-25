@@ -1,0 +1,26 @@
+main()
+begin
+    let Float n;
+    let Float a;
+    let Float b;
+    let Float proximo;
+    let Float contador;
+
+    n := 0.0;
+    a := 1.0;
+    b := 1.0;
+    contador := 0.0;
+
+    n := read();
+
+    while contador < n
+    begin
+        print a;
+        
+        proximo := a + b;
+        a := b;
+        b := proximo;
+
+        contador := contador + 1.0;
+    end
+end

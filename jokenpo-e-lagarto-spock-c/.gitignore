@@ -1,0 +1,4 @@
+
+# Arquivos gerados ou pacotes fora do código-fonte
+*.exe
+/DOWNLOAD-INFO.md

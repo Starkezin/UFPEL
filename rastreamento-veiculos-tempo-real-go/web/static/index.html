@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Monitoramento de Veiculos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <style>
+    :root {
+      --panel-bg: rgba(255, 255, 255, 0.92);
+      --panel-shadow: 0 10px 30px rgba(15, 23, 42, 0.15);
+      --text: #152033;
+      --muted: #5c677d;
+      --surface: #eef3f8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, #dbeafe 0%, #eff6ff 100%);
+    }
+
+    body {
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 20px;
+      background: rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--panel-shadow);
+      z-index: 1000;
+    }
+
+    .title h1 {
+      margin: 0;
+      font-size: 1.25rem;
+    }
+
+    .title p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: var(--surface);
+      font-size: 0.92rem;
+    }
+
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    .leaflet-popup-content {
+      margin: 10px 12px;
+    }
+
+    .status {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      z-index: 1000;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: var(--panel-bg);
+      box-shadow: var(--panel-shadow);
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    @media (max-width: 720px) {
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .legend {
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <h1>Monitoramento de dois veiculos</h1>
+      <p>Mapa em tempo real com posicao atual e rastro do trajeto.</p>
+    </div>
+    <div class="legend" id="legend"></div>
+  </header>
+
+  <div id="map"></div>
+  <div class="status" id="status">Conectando ao servidor...</div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const initialCenter = [-31.770687426923516, -52.34135057529372];
+    const map = L.map("map").setView(initialCenter, 16);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const statusEl = document.getElementById("status");
+    const legendEl = document.getElementById("legend");
+    const layersByAgent = new Map();
+    let hasFittedBounds = false;
+
+    function createIcon(color) {
+      return L.divIcon({
+        className: "",
+        html: `
+          <div style="
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: ${color};
+            border: 3px solid white;
+            box-shadow: 0 0 0 2px ${color}55, 0 4px 12px rgba(0, 0, 0, 0.25);
+          "></div>
+        `,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9]
+      });
+    }
+
+    function renderLegend(agents) {
+      legendEl.innerHTML = "";
+
+      for (const agent of agents) {
+        const item = document.createElement("div");
+        item.className = "legend-item";
+        item.innerHTML = `
+          <span class="legend-color" style="background:${agent.color}"></span>
+          <span>${agent.name}</span>
+        `;
+        legendEl.appendChild(item);
+      }
+    }
+
+    function ensureAgentLayers(agent) {
+      if (layersByAgent.has(agent.id)) {
+        return layersByAgent.get(agent.id);
+      }
+
+      const marker = L.marker(
+        [agent.position.latitude, agent.position.longitude],
+        { icon: createIcon(agent.color) }
+      ).addTo(map);
+
+      const trail = L.polyline([], {
+        color: agent.color,
+        weight: 4,
+        opacity: 0.75
+      }).addTo(map);
+
+      const layers = { marker, trail };
+      layersByAgent.set(agent.id, layers);
+      return layers;
+    }
+
+    function updateMap(snapshot) {
+      const bounds = [];
+
+      for (const agent of snapshot.agents) {
+        const layers = ensureAgentLayers(agent);
+        const current = [agent.position.latitude, agent.position.longitude];
+        const history = agent.history.map((point) => [point.latitude, point.longitude]);
+
+        layers.marker.setLatLng(current);
+        layers.marker.bindPopup(`
+          <strong>${agent.name}</strong><br>
+          Passo: ${agent.position.step}<br>
+          Latitude: ${agent.position.latitude.toFixed(6)}<br>
+          Longitude: ${agent.position.longitude.toFixed(6)}
+        `);
+
+        layers.trail.setLatLngs(history);
+        bounds.push(...history);
+      }
+
+      if (!hasFittedBounds && bounds.length > 0) {
+        map.fitBounds(bounds, { padding: [40, 40] });
+        hasFittedBounds = true;
+      }
+
+      statusEl.textContent = "Ultima atualizacao: " + new Date(snapshot.timestamp).toLocaleTimeString("pt-BR");
+    }
+
+    fetch("/positions")
+      .then((response) => response.json())
+      .then((snapshot) => {
+        renderLegend(snapshot.agents);
+        updateMap(snapshot);
+      })
+      .catch(() => {
+        statusEl.textContent = "Nao foi possivel carregar as posicoes iniciais.";
+      });
+
+    const source = new EventSource("/stream");
+
+    source.onmessage = function(event) {
+      const snapshot = JSON.parse(event.data);
+      renderLegend(snapshot.agents);
+      updateMap(snapshot);
+    };
+
+    source.onerror = function() {
+      statusEl.textContent = "Conexao com o servidor instavel. Tentando reconectar...";
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+# --- C / Compilação ---
+# Ignora a pasta onde os executáveis são gerados pelo Makefile
+bin/
+
+# Ignora arquivos objeto e saídas padrão soltas (caso compile manualmente)
+*.o
+*.out
+*.exe
+
+# --- Python ---
+# Ambientes Virtuais (vários nomes comuns)
+venv/
+.venv/
+env/
+
+# Bytecode compilado e cache do Python
+__pycache__/
+*.pyc
+
+# --- Resultados Gerados ---
+# Não é boa prática versionar os CSVs e Imagens de teste
+
+# --- Sistema Operacional / Editores ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

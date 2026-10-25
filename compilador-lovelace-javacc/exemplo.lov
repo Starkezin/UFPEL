@@ -1,0 +1,32 @@
+main()
+begin
+    let Float resultado;
+    let Float contador;
+    let Float limite;
+
+    resultado := 0.0;
+    contador := 1.0;
+    limite := 5.0;
+
+    while contador < limite
+    begin
+        if contador < 3
+        begin
+            resultado := resultado + soma(5, 1.0);
+        end
+        if contador > 3
+        begin
+            resultado := resultado + soma(contador, 0.5);
+        end
+        contador := contador + 1.0;
+    end
+
+    print resultado;
+end
+
+def Float soma(Float a, Float b)
+begin
+    let Float result;
+    result := a + b;
+    return result;
+end

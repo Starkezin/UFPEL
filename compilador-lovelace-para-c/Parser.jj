@@ -1,0 +1,300 @@
+options {
+    OUTPUT_DIRECTORY = "javaFiles";
+}
+
+
+PARSER_BEGIN(Parser)
+import java.io.*;
+import java.util.*;
+import ast.*;
+
+public class Parser {
+
+  public static void main(String args[]) {
+    try {
+        // 1. Verifica se o usuário passou o arquivo de entrada
+        if (args.length < 1) {
+            System.out.println("Uso: java Parser <arquivo_entrada>");
+            return;
+        }
+
+        // 2. Inicializa o Parser com o arquivo passado
+        Parser parser = new Parser(new FileInputStream(args[0]));
+        
+        // 3. Gera a Árvore (AST)
+        // ATENÇÃO: Verifique no seu .jj se o método inicial se chama 'Parser' ou 'Program'
+        Prog arv = parser.Parser(); 
+        
+        System.out.println("Analise sintatica concluida.");
+
+        // 4. Chama a geração de código
+        gera_codigo(arv, "saida.c");
+
+    } catch (ParseException e) {
+        System.err.println("Erro de Sintaxe: " + e.getMessage());
+    } catch (IOException e) {
+        System.err.println("Erro de Arquivo: " + e.getMessage());
+    }
+  }
+
+  // Implementação da função que salva o arquivo
+  static void gera_codigo(Prog p, String nomeArquivoSaida) {
+      try {
+          System.out.println("Gerando codigo C...");
+          
+          // 1. Pega todo o código C gerado pela árvore
+          String codigoC = p.geraCodigo();
+
+          // 2. Prepara para escrever no arquivo
+          FileWriter fw = new FileWriter(nomeArquivoSaida);
+          BufferedWriter bw = new BufferedWriter(fw);
+          
+          // 3. Escreve e fecha
+          bw.write(codigoC);
+          bw.close();
+          
+          System.out.println("Sucesso! O arquivo '" + nomeArquivoSaida + "' foi criado.");
+          
+      } catch (IOException e) {
+          System.err.println("Erro ao gravar o arquivo C: " + e.getMessage());
+      }
+  }
+}
+
+
+PARSER_END(Parser)
+
+
+
+
+SKIP :
+{
+  " "
+| "\t"
+| "\n"
+| "\r"
+}
+
+TOKEN :
+{
+  <MAIN: "main">
+| <LET: "let">
+| <APAR:"(">
+| <FPAR:")">
+| <PRINT: "print">
+| <ATRIB: ":=">
+| <PV: ";">
+| <BEGIN: "begin">
+| <END: "end">
+| <FLOAT: "Float">
+| <BOOL: "Bool">
+| <VOID: "Void">
+| <READ: "read">
+
+| <SUM: "+">
+| <SUB: "-">
+| <MUL: "*">
+| <DIV: "/">
+| <AND: "&&">
+| <OR: "||">
+| <LESS: "<">
+| <GREATHER: ">">
+| <EQUAL: "==">
+
+| <IF: "if">
+| <WHILE: "while">
+
+| <RETURN: "return">
+| <TRUE: "true">
+| <FALSE: "false">
+| <VIRG: ",">
+| <DEF: "def">
+
+
+}
+
+TOKEN :
+{
+  <NUM : (["0"-"9", "."])+>
+ |< ID: ["a"-"z","A"-"Z"] ( ["a"-"z","A"-"Z","0"-"9"])*>
+
+}
+
+
+// Parser -> "main" "{" COMANDOS  "}"
+
+Prog Parser():
+{Main main = null; ArrayList<Fun> fun = null;}
+{
+   main=Main() (fun=Func())
+   {return new Prog(main, fun);}
+}
+
+Main Main():
+{ArrayList<VarDecl> vars = null; ArrayList<Comando> coms = null;} 
+{
+   <MAIN> <APAR> <FPAR> <BEGIN> vars=VarDecl() coms=Comandos() <END>
+
+   {return new Main (vars, coms);}
+}
+
+ArrayList<VarDecl> VarDecl() :
+{ArrayList<VarDecl> vars = new ArrayList<>(); String t; Token id;}
+{
+   ( 
+    <LET> t = Tipo() id = <ID> <PV> 
+    { vars.add(new VarDecl(t, id.image));}
+  )*
+  {return vars;}
+}
+
+
+String Tipo () :
+{ Token t;}
+{
+
+    t=<FLOAT> { return t.image; }  
+  | t=<BOOL> { return t.image; }
+  | t=<VOID> { return t.image; }
+}
+
+
+// COMANDOS -> COM ";"  COMANDOS'
+ArrayList<Comando> Comandos () :
+{ArrayList<Comando> coms = new ArrayList<Comando>(); Comando c = null; }
+{
+
+ ( c=Com() {coms.add(c);})*
+
+ {return coms;}
+
+}
+
+// COMANDOS'->   COM ";" COMANDOS' | epsilon
+
+void ComandosL (ArrayList comandos) :
+{Comando c;}
+{
+
+ ( c = Com() {comandos.add(c);} <PV>  ComandosL(comandos))?
+
+}
+
+// COM -> id ":=" EXP | "print" "(" EXP ")"
+
+Comando Com() :
+{Token id; Comando c; Exp e; ArrayList<Comando> bloco;}
+{
+    id=<ID> c=ComID(id) { return c; }
+  | id=<IF> e=Exp() <BEGIN> bloco=Comandos() <END> { return new CIf(id.beginLine, e, bloco); }
+  | id=<WHILE> e=Exp() <BEGIN> bloco=Comandos() <END> { return new CWhile(id.beginLine, e, bloco); }
+  | id=<RETURN> e=Exp() <PV> { return new CReturn(id.beginLine, e); }
+  | id=<PRINT> e=Exp() <PV> { return new CPrint(id.beginLine, e); }
+}
+
+Comando ComID(Token id) :
+{Comando c; ArrayList<Exp> args;}
+{
+    <ATRIB> c=ComAtrib(id) { return c; }
+  | <APAR> args=listaExp() <FPAR> <PV> { return new CChamadaFun(id.beginLine, id.image, args); }
+}
+
+Comando ComAtrib(Token id) :
+{Exp e;}
+{
+    <READ> <APAR> <FPAR> <PV> { return new CReadInput(id.beginLine, id.image); }
+  | e=Exp() <PV> { return new CAtribuicao(id.beginLine, id.image, e); }
+}
+
+// EXP -> num | id
+Exp Exp() :
+{Exp e1; Exp e2; String op;}
+{
+    e1=Fator() 
+    (
+      op=Op() 
+      e2=Fator() 
+      { e1=new EOpExp(op, e1, e2); }
+    )*
+    { return e1; } 
+}
+Exp Fator() :
+{Token t; ArrayList<Exp> args; Exp e;}
+{
+    t=<NUM> { return new EFloat(Float.parseFloat(t.image)); }
+  | <TRUE> { return new ETrue(); }
+  | <FALSE> { return new EFalse(); }
+  | t=<ID> args=FatorID() 
+  {
+    if(args == null)
+      return new EVar(t.image);
+    else 
+      return new EChamadaFun(t.image, args);
+  }
+  | <APAR> e=Exp() <FPAR> { return e; }
+}
+
+ArrayList<Exp> FatorID() :
+{ArrayList<Exp> args = null;}
+{
+    (<APAR> args=listaExp() <FPAR>)? { return args; }
+}
+
+String Op() :
+{Token t;}
+{
+
+    t=<SUM> { return t.image; }
+   | t=<SUB> { return t.image; }
+   | t=<MUL> { return t.image; }
+   | t=<DIV> { return t.image; }
+   | t=<AND> { return t.image; }
+   | t=<OR> { return t.image; }
+   | t=<GREATHER> { return t.image; }
+   | t=<LESS> { return t.image; }
+   | t=<EQUAL> { return t.image; }
+
+}
+
+ArrayList<Exp> listaExp():
+{ArrayList<Exp> lista = new ArrayList<Exp>(); Exp e;}
+{
+  (
+    e=Exp() { lista.add(e); }
+    ( <VIRG> e=Exp() { lista.add(e); } )*
+  )?
+  { return lista; } 
+}
+
+ArrayList<Fun> Func() :
+{ArrayList<Fun> funs = new ArrayList<>(); Fun f;}
+{
+  ( f=FuncL() { funs.add(f); } )* { return funs; }
+}
+
+Fun FuncL() :
+{String t; Token id; ArrayList<ParamFormalFun> params; ArrayList<VarDecl> vars; ArrayList<Comando> body;}
+{
+  <DEF> t=Tipo() id=<ID> 
+  <APAR> params=ListaArg() <FPAR> 
+  <BEGIN> 
+    vars=VarDecl() 
+    body=Comandos() 
+  <END> 
+  { return new Fun(id.image, params, t, vars, body); }
+}
+
+ArrayList<ParamFormalFun> ListaArg() :
+{ArrayList<ParamFormalFun> lista = new ArrayList<>(); ParamFormalFun p;}
+{
+  ( p=ListaArgL() { lista .add(p); }
+    ( <VIRG> p=ListaArgL() { lista.add(p); } )* 
+  )?
+  { return lista; }
+}
+
+ParamFormalFun ListaArgL() :
+{String t; Token id;}
+{
+  t=Tipo() id=<ID> { return new ParamFormalFun(t, id.image); }
+}

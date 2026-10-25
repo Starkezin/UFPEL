@@ -1,0 +1,2 @@
+# Trabalho.lab
+Esse branch possui a função onde a pessoa escolhe Pedra, Papel ou Tesoura, e em seguida a maquina sorteia um valor, e no fim o vencedor e anunciado, mostrando o que a pessoa escolheu e o que a maquina sorteou.
